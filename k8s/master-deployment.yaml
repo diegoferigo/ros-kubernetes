@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: roscore-deployment
+  labels:
+    app: roscluster
+    node: roscore
+spec:
+  replicas: 1
+  # The deployment handles all matching templated pods
+  selector:
+    matchLabels:
+      node: roscore
+  # Template for a replica.
+  # The deployment makes sure that a POD containing the containers
+  # defined below is always running.
+  template:
+    metadata:
+      labels:
+        node: roscore
+    spec:
+      containers:
+      - name: rosclustermaster
+        image: roscluster/master:v0
+        args:
+        - roscore
+        ports:
+        - containerPort: 11311
+          name: roscoreport
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-master
+  labels:
+    app: roscluster
+    node: roscore
+spec:
+  clusterIP: None
+  ports: 
+    - port: 11311
+  selector:
+    node: roscore

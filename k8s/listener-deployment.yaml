@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: listener-deployment
+  labels:
+    app: roscluster
+    node: listener
+spec:
+  replicas: 1
+  # The deployment handles all matching templated pods
+  selector:
+    matchLabels:
+      node: listener
+  # Template for a replica.
+  # The deployment makes sure that a POD containing the containers
+  # defined below is always running.
+  template:
+    metadata:
+      labels:
+        node: listener
+    spec:
+      # Wait roscore to be running before starting the pod.
+      # An initContainer is executed when this pod is created
+      # and tries to connect to the rocore which is running in
+      # a container in the master pod deployment.
+      # https://kubernetes.io/docs/concepts/workloads/pods/init-containers/
+      initContainers:
+      - name: init-service-listener
+        image: roscluster/node:v0
+        args:
+        - check-roscore.py
+        env:
+        - name: ROS_MASTER_URI
+          value: http://service-master:11311
+        - name: ROS_HOSTNAME
+          value: service-listener
+      containers:
+      # The real node container
+      - name: rosclusterpublisher
+        image: roscluster/node:v0
+        args:
+        - rostopic
+        - echo
+        - chatter
+        env:
+        - name: ROS_MASTER_URI
+          value: http://service-master:11311
+        - name: ROS_HOSTNAME
+          value: service-listener
+        # When the roscore container stops or fails, all the node
+        # containers need to be restarted because the ros network
+        # configuration is lost.
+        # This liveness probe restarts the node container if the
+        # 'chatter' topic is not anymore listed in the ROS network.
+        # This is required because the node doesn't fail automatically
+        # when roscore stops / restarts.
+        # https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/
+        livenessProbe:
+          exec:
+            command:
+            - entrypoint.sh
+            - /opt/ros/melodic/bin/rostopic
+            - info
+            - chatter
+          initialDelaySeconds: 5
+          periodSeconds: 1
+
+---
+
+apiVersion: v1
+kind: Service
+metadata: 
+  name: service-listener
+  labels:
+    app: roscluster
+    node: listener
+spec:
+  # Start a headless service
+  # https://kubernetes.io/docs/concepts/services-networking/service/#headless-services
+  clusterIP: None
+  ports: 
+    # Dummy port
+    - port: 11311
+  selector: 
+    node: listener
