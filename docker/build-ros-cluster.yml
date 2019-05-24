@@ -1,0 +1,15 @@
+version: '2.4'
+
+services:
+    master:
+        image: roscluster/master:v0
+        build:
+            context: ./master/
+            args:
+                from: ros:melodic-ros-core
+    node:
+        image: roscluster/node:v0
+        build:
+            context: ./node/
+            args:
+                from: ros:melodic-ros-core
