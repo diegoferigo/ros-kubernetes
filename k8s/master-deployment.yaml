@@ -27,6 +27,9 @@ spec:
         ports:
         - containerPort: 11311
           name: roscoreport
+        env:
+          - name: ROS_MASTER_URI
+            value: http://0.0.0.0:11311
 
 ---
 
